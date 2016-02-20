@@ -1,0 +1,24 @@
+Elm.Date = Elm.Date || {};
+Elm.Date.Internal = Elm.Date.Internal || {};
+Elm.Date.Internal.make = function (_elm) {
+   "use strict";
+   _elm.Date = _elm.Date || {};
+   _elm.Date.Internal = _elm.Date.Internal || {};
+   if (_elm.Date.Internal.values) return _elm.Date.Internal.values;
+   var _U = Elm.Native.Utils.make(_elm),
+   $Basics = Elm.Basics.make(_elm),
+   $Date = Elm.Date.make(_elm),
+   $Date$Core = Elm.Date.Core.make(_elm),
+   $Date$Create = Elm.Date.Create.make(_elm),
+   $Debug = Elm.Debug.make(_elm),
+   $List = Elm.List.make(_elm),
+   $Maybe = Elm.Maybe.make(_elm),
+   $Result = Elm.Result.make(_elm),
+   $Signal = Elm.Signal.make(_elm);
+   var _op = {};
+   var hackDateAsOffset = F2(function (offsetMinutes,date) {
+      return $Date$Core.fromTime(A2(F2(function (x,y) {    return x + y;}),offsetMinutes * $Date$Core.ticksAMinute,$Date$Core.toTime(date)));
+   });
+   var hackDateAsUtc = function (date) {    return A2(hackDateAsOffset,$Date$Create.getTimezoneOffset(date),date);};
+   return _elm.Date.Internal.values = {_op: _op,hackDateAsUtc: hackDateAsUtc,hackDateAsOffset: hackDateAsOffset};
+};

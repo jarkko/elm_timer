@@ -1,0 +1,32 @@
+Elm.Date = Elm.Date || {};
+Elm.Date.Config = Elm.Date.Config || {};
+Elm.Date.Config.Config_en_us = Elm.Date.Config.Config_en_us || {};
+Elm.Date.Config.Config_en_us.make = function (_elm) {
+   "use strict";
+   _elm.Date = _elm.Date || {};
+   _elm.Date.Config = _elm.Date.Config || {};
+   _elm.Date.Config.Config_en_us = _elm.Date.Config.Config_en_us || {};
+   if (_elm.Date.Config.Config_en_us.values) return _elm.Date.Config.Config_en_us.values;
+   var _U = Elm.Native.Utils.make(_elm),
+   $Basics = Elm.Basics.make(_elm),
+   $Date = Elm.Date.make(_elm),
+   $Date$Config = Elm.Date.Config.make(_elm),
+   $Date$I18n$I_en_us = Elm.Date.I18n.I_en_us.make(_elm),
+   $Debug = Elm.Debug.make(_elm),
+   $List = Elm.List.make(_elm),
+   $Maybe = Elm.Maybe.make(_elm),
+   $Result = Elm.Result.make(_elm),
+   $Signal = Elm.Signal.make(_elm);
+   var _op = {};
+   var config = {i18n: {dayShort: $Date$I18n$I_en_us.dayShort
+                       ,dayName: $Date$I18n$I_en_us.dayName
+                       ,monthShort: $Date$I18n$I_en_us.monthShort
+                       ,monthName: $Date$I18n$I_en_us.monthName}
+                ,format: {date: "%-m/%-d/%Y"
+                         ,longDate: "%A, %B %d, %Y"
+                         ,time: "%-H:%M %p"
+                         ,longTime: "%-H:%M:%S %p"
+                         ,dateTime: "%-m/%-d/%Y %-H:%M %p"
+                         ,firstDayOfWeek: $Date.Mon}};
+   return _elm.Date.Config.Config_en_us.values = {_op: _op,config: config};
+};

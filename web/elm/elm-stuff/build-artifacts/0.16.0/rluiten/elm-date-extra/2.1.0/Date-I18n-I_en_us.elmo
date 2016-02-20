@@ -1,0 +1,74 @@
+Elm.Date = Elm.Date || {};
+Elm.Date.I18n = Elm.Date.I18n || {};
+Elm.Date.I18n.I_en_us = Elm.Date.I18n.I_en_us || {};
+Elm.Date.I18n.I_en_us.make = function (_elm) {
+   "use strict";
+   _elm.Date = _elm.Date || {};
+   _elm.Date.I18n = _elm.Date.I18n || {};
+   _elm.Date.I18n.I_en_us = _elm.Date.I18n.I_en_us || {};
+   if (_elm.Date.I18n.I_en_us.values) return _elm.Date.I18n.I_en_us.values;
+   var _U = Elm.Native.Utils.make(_elm),
+   $Basics = Elm.Basics.make(_elm),
+   $Date = Elm.Date.make(_elm),
+   $Debug = Elm.Debug.make(_elm),
+   $List = Elm.List.make(_elm),
+   $Maybe = Elm.Maybe.make(_elm),
+   $Result = Elm.Result.make(_elm),
+   $Signal = Elm.Signal.make(_elm);
+   var _op = {};
+   var monthName = function (month) {
+      var _p0 = month;
+      switch (_p0.ctor)
+      {case "Jan": return "January";
+         case "Feb": return "February";
+         case "Mar": return "March";
+         case "Apr": return "April";
+         case "May": return "May";
+         case "Jun": return "June";
+         case "Jul": return "July";
+         case "Aug": return "August";
+         case "Sep": return "September";
+         case "Oct": return "October";
+         case "Nov": return "November";
+         default: return "December";}
+   };
+   var monthShort = function (month) {
+      var _p1 = month;
+      switch (_p1.ctor)
+      {case "Jan": return "Jan";
+         case "Feb": return "Feb";
+         case "Mar": return "Mar";
+         case "Apr": return "Apr";
+         case "May": return "May";
+         case "Jun": return "Jun";
+         case "Jul": return "Jul";
+         case "Aug": return "Aug";
+         case "Sep": return "Sep";
+         case "Oct": return "Oct";
+         case "Nov": return "Nov";
+         default: return "Dec";}
+   };
+   var dayName = function (day) {
+      var _p2 = day;
+      switch (_p2.ctor)
+      {case "Mon": return "Monday";
+         case "Tue": return "Tuesday";
+         case "Wed": return "Wednesday";
+         case "Thu": return "Thursday";
+         case "Fri": return "Friday";
+         case "Sat": return "Saturday";
+         default: return "Sunday";}
+   };
+   var dayShort = function (day) {
+      var _p3 = day;
+      switch (_p3.ctor)
+      {case "Mon": return "Mon";
+         case "Tue": return "Tue";
+         case "Wed": return "Wed";
+         case "Thu": return "Thu";
+         case "Fri": return "Fri";
+         case "Sat": return "Sat";
+         default: return "Sun";}
+   };
+   return _elm.Date.I18n.I_en_us.values = {_op: _op,dayShort: dayShort,dayName: dayName,monthShort: monthShort,monthName: monthName};
+};

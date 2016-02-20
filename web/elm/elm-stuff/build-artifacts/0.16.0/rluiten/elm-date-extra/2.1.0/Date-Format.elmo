@@ -1,0 +1,118 @@
+Elm.Date = Elm.Date || {};
+Elm.Date.Format = Elm.Date.Format || {};
+Elm.Date.Format.make = function (_elm) {
+   "use strict";
+   _elm.Date = _elm.Date || {};
+   _elm.Date.Format = _elm.Date.Format || {};
+   if (_elm.Date.Format.values) return _elm.Date.Format.values;
+   var _U = Elm.Native.Utils.make(_elm),
+   $Basics = Elm.Basics.make(_elm),
+   $Date = Elm.Date.make(_elm),
+   $Date$Config = Elm.Date.Config.make(_elm),
+   $Date$Config$Config_en_us = Elm.Date.Config.Config_en_us.make(_elm),
+   $Date$Core = Elm.Date.Core.make(_elm),
+   $Date$Create = Elm.Date.Create.make(_elm),
+   $Date$Internal = Elm.Date.Internal.make(_elm),
+   $Debug = Elm.Debug.make(_elm),
+   $List = Elm.List.make(_elm),
+   $Maybe = Elm.Maybe.make(_elm),
+   $Regex = Elm.Regex.make(_elm),
+   $Result = Elm.Result.make(_elm),
+   $Signal = Elm.Signal.make(_elm),
+   $String = Elm.String.make(_elm);
+   var _op = {};
+   var toHourMin = function (offsetMinutes) {    return {ctor: "_Tuple2",_0: offsetMinutes / 60 | 0,_1: A2($Basics._op["%"],offsetMinutes,60)};};
+   var padWithN = F2(function (n,c) {    return function (_p0) {    return A3($String.padLeft,n,c,$Basics.toString(_p0));};});
+   var padWith = function (c) {    return function (_p1) {    return A3($String.padLeft,2,c,$Basics.toString(_p1));};};
+   var mod12 = function (h) {    return _U.eq(A2($Basics._op["%"],h,12),0) ? 12 : A2($Basics._op["%"],h,12);};
+   var formatOffsetStr = F2(function (betweenHoursMinutes,offset) {
+      var _p2 = toHourMin($Basics.abs(offset));
+      var hour = _p2._0;
+      var minute = _p2._1;
+      return A2($Basics._op["++"],
+      _U.cmp(offset,0) < 1 ? "+" : "-",
+      A2($Basics._op["++"],A2(padWith,_U.chr("0"),hour),A2($Basics._op["++"],betweenHoursMinutes,A2(padWith,_U.chr("0"),minute))));
+   });
+   var collapse = function (m) {    return A2($Maybe.andThen,m,$Basics.identity);};
+   var formatToken = F4(function (config,offset,d,m) {
+      var symbol = A2($Maybe.withDefault," ",collapse($List.head(m.submatches)));
+      var _p3 = symbol;
+      switch (_p3)
+      {case "Y": return A3(padWithN,4,_U.chr("0"),$Date.year(d));
+         case "m": return A2(padWith,_U.chr("0"),$Date$Core.monthToInt($Date.month(d)));
+         case "_m": return A2(padWith,_U.chr(" "),$Date$Core.monthToInt($Date.month(d)));
+         case "-m": return $Basics.toString($Date$Core.monthToInt($Date.month(d)));
+         case "B": return config.i18n.monthName($Date.month(d));
+         case "^B": return $String.toUpper(config.i18n.monthName($Date.month(d)));
+         case "b": return config.i18n.monthShort($Date.month(d));
+         case "^b": return $String.toUpper(config.i18n.monthShort($Date.month(d)));
+         case "d": return A2(padWith,_U.chr("0"),$Date.day(d));
+         case "-d": return $Basics.toString($Date.day(d));
+         case "e": return A2(padWith,_U.chr(" "),$Date.day(d));
+         case "A": return config.i18n.dayName($Date.dayOfWeek(d));
+         case "^A": return $String.toUpper(config.i18n.dayName($Date.dayOfWeek(d)));
+         case "a": return config.i18n.dayShort($Date.dayOfWeek(d));
+         case "^a": return $String.toUpper(config.i18n.dayShort($Date.dayOfWeek(d)));
+         case "H": return A2(padWith,_U.chr("0"),$Date.hour(d));
+         case "-H": return $Basics.toString($Date.hour(d));
+         case "k": return A2(padWith,_U.chr(" "),$Date.hour(d));
+         case "I": return A2(padWith,_U.chr("0"),mod12($Date.hour(d)));
+         case "-I": return $Basics.toString(mod12($Date.hour(d)));
+         case "l": return A2(padWith,_U.chr(" "),mod12($Date.hour(d)));
+         case "p": return _U.cmp($Date.hour(d),13) < 0 ? "AM" : "PM";
+         case "P": return _U.cmp($Date.hour(d),13) < 0 ? "am" : "pm";
+         case "M": return A2(padWith,_U.chr("0"),$Date.minute(d));
+         case "S": return A2(padWith,_U.chr("0"),$Date.second(d));
+         case "L": return A3(padWithN,3,_U.chr("0"),$Date.millisecond(d));
+         case "%": return symbol;
+         case "z": return A2(formatOffsetStr,"",offset);
+         case ":z": return A2(formatOffsetStr,":",offset);
+         default: return "";}
+   });
+   var formatRegex = $Regex.regex("%(Y|m|_m|-m|B|^B|b|^b|d|-d|e|A|^A|a|^a|H|-H|k|I|-I|l|p|P|M|S|%|L|z|:z)");
+   var formatOffset = F4(function (config,offset,formatStr,date) {
+      var hackOffset = $Date$Create.getTimezoneOffset(date) - offset;
+      return A4($Regex.replace,$Regex.All,formatRegex,A3(formatToken,config,offset,A2($Date$Internal.hackDateAsOffset,hackOffset,date)),formatStr);
+   });
+   var format = F3(function (config,formatStr,date) {    return A4(formatOffset,config,$Date$Create.getTimezoneOffset(date),formatStr,date);});
+   var formatUtc = F3(function (config,formatStr,date) {    return A4(formatOffset,config,0,formatStr,date);});
+   var isoDateString = function (date) {
+      var day = $Date.day(date);
+      var month = $Date.month(date);
+      var year = $Date.year(date);
+      return A2($Basics._op["++"],
+      A3($String.padLeft,4,_U.chr("0"),$Basics.toString(year)),
+      A2($Basics._op["++"],
+      "-",
+      A2($Basics._op["++"],
+      A3($String.padLeft,2,_U.chr("0"),$Basics.toString($Date$Core.monthToInt(month))),
+      A2($Basics._op["++"],"-",A3($String.padLeft,2,_U.chr("0"),$Basics.toString(day))))));
+   };
+   var utcIsoDateString = function (date) {    return isoDateString($Date$Internal.hackDateAsUtc(date));};
+   var yearInt = function (year) {    return A3($String.padLeft,4,_U.chr("0"),$Basics.toString(year));};
+   var year = function (date) {    return A3($String.padLeft,4,_U.chr("0"),$Basics.toString($Date.year(date)));};
+   var monthMonth = function (month) {    return A3($String.padLeft,2,_U.chr("0"),$Basics.toString($Date$Core.monthToInt(month)));};
+   var month = function (date) {    return A3($String.padLeft,2,_U.chr("0"),$Basics.toString($Date$Core.monthToInt($Date.month(date))));};
+   var isoTimeFormat = "%H:%M:%S";
+   var isoDateFormat = "%Y-%m-%d";
+   var isoMsecOffsetFormat = "%Y-%m-%dT%H:%M:%S.%L%z";
+   var isoString = A2(format,$Date$Config$Config_en_us.config,isoMsecOffsetFormat);
+   var isoOffsetFormat = "%Y-%m-%dT%H:%M:%S%z";
+   var isoMsecFormat = "%Y-%m-%dT%H:%M:%S.%L";
+   var utcIsoString = function (date) {    return A2($Basics._op["++"],A3(formatUtc,$Date$Config$Config_en_us.config,isoMsecFormat,date),"Z");};
+   var isoFormat = "%Y-%m-%dT%H:%M:%S";
+   return _elm.Date.Format.values = {_op: _op
+                                    ,format: format
+                                    ,formatUtc: formatUtc
+                                    ,formatOffset: formatOffset
+                                    ,isoString: isoString
+                                    ,utcIsoString: utcIsoString
+                                    ,isoDateString: isoDateString
+                                    ,utcIsoDateString: utcIsoDateString
+                                    ,isoFormat: isoFormat
+                                    ,isoMsecFormat: isoMsecFormat
+                                    ,isoOffsetFormat: isoOffsetFormat
+                                    ,isoMsecOffsetFormat: isoMsecOffsetFormat
+                                    ,isoDateFormat: isoDateFormat
+                                    ,isoTimeFormat: isoTimeFormat};
+};
