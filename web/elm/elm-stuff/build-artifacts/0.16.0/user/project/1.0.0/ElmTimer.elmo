@@ -11,28 +11,47 @@ Elm.ElmTimer.make = function (_elm) {
    $Html = Elm.Html.make(_elm),
    $Html$Attributes = Elm.Html.Attributes.make(_elm),
    $Html$Events = Elm.Html.Events.make(_elm),
+   $Json$Decode = Elm.Json.Decode.make(_elm),
    $List = Elm.List.make(_elm),
    $Maybe = Elm.Maybe.make(_elm),
    $Random$PCG = Elm.Random.PCG.make(_elm),
    $Result = Elm.Result.make(_elm),
    $Signal = Elm.Signal.make(_elm),
-   $StartApp = Elm.StartApp.make(_elm),
    $String = Elm.String.make(_elm),
-   $Time = Elm.Time.make(_elm);
+   $Time = Elm.Time.make(_elm),
+   $TimeApp = Elm.TimeApp.make(_elm),
+   $Uuid = Elm.Uuid.make(_elm);
    var _op = {};
    var nameFor = F2(function (uuid,runners) {
       return function (r) {
          return A2($Basics._op["++"],r.first_name,A2($Basics._op["++"]," ",r.last_name));
       }(A2($Maybe.withDefault,
-      {id: "123",first_name: "Foo",last_name: "Bar"},
+      {id: "123",first_name: "Unknown",last_name: "Runner",bib_number: "1"},
       $List.head(A2($List.filter,function (r) {    return _U.eq(r.id,uuid) && _U.cmp($String.length(uuid),0) > 0;},runners))));
    });
-   var resultItem = F2(function (runners,result) {
-      return A2($Html.li,
-      _U.list([$Html$Attributes.$class("result")]),
-      _U.list([$Html.text(A2(nameFor,result.runner_id,runners)),$Html.text(", "),$Html.text($Basics.toString(result.time))]));
+   var bibNumberFor = F2(function (runner_id,runners) {
+      return _U.eq(runner_id,$Maybe.Nothing) ? "" : function (r) {
+         return r.bib_number;
+      }(A2($Maybe.withDefault,
+      {id: "123",first_name: "Foo",last_name: "Bar",bib_number: "1"},
+      $List.head(A2($List.filter,function (r) {    return _U.eq(r.id,A2($Maybe.withDefault,"",runner_id));},runners))));
    });
    var paddedTime = function (t) {    return A3($String.padLeft,2,_U.chr("0"),t);};
+   var formattedTimeInterval = function (t) {
+      var hours = $Basics.floor($Time.inHours(t));
+      var minutes = A2($Basics._op["%"],$Basics.floor($Time.inMinutes(t)),60);
+      var secs = A2($Basics._op["%"],$Basics.floor($Time.inSeconds(t)),60);
+      var times = _U.list([hours,minutes,secs]);
+      return A2($String.join,":",A2($List.map,paddedTime,A2($List.map,$Basics.toString,times)));
+   };
+   var timeDiff = F2(function (to,from) {    var diff = to - from;return $Html.text(formattedTimeInterval(_U.cmp(diff,0) > 0 ? diff : 0));});
+   var timer = function (model) {
+      return _U.eq(model.timer.start_time,$Maybe.Nothing) ? A2($Html.div,
+      _U.list([$Html$Attributes.$class("clock")]),
+      _U.list([$Html.text("Not started")])) : A2($Html.div,
+      _U.list([$Html$Attributes.$class("clock")]),
+      _U.list([A2(timeDiff,model.current_time,A2($Maybe.withDefault,0,model.timer.start_time))]));
+   };
    var currentTime = function (t) {
       var date$ = $Date.fromTime(t);
       var hour$ = $Basics.toString($Date.hour(date$));
@@ -46,46 +65,103 @@ Elm.ElmTimer.make = function (_elm) {
       var year$ = $Basics.toString($Date.year(date$));
       return $Html.text(now);
    };
-   var timer = function (model) {
-      return _U.eq(model.timer.start_time,$Maybe.Nothing) ? A2($Html.div,
-      _U.list([$Html$Attributes.$class("clock")]),
-      _U.list([$Html.text("Not started")])) : A2($Html.div,
-      _U.list([$Html$Attributes.$class("clock")]),
-      _U.list([currentTime(model.current_time - A2($Maybe.withDefault,0,model.timer.start_time))]));
-   };
-   var update = F2(function (action,model) {
-      var _p0 = action;
-      if (_p0.ctor === "Tick") {
-            var new_model = _U.update(model,{current_time: _p0._0});
-            return {ctor: "_Tuple2",_0: new_model,_1: $Effects.none};
-         } else {
-            var new_model = _U.update(model,{timer: {start_time: $Maybe.Just(model.current_time)}});
-            return {ctor: "_Tuple2",_0: new_model,_1: $Effects.none};
-         }
+   var is13 = function (code) {    return _U.eq(code,13) ? $Result.Ok({ctor: "_Tuple0"}) : $Result.Err("not the right key code");};
+   var onEnter = F2(function (address,value) {
+      return A3($Html$Events.on,
+      "keydown",
+      A2($Json$Decode.customDecoder,$Html$Events.keyCode,is13),
+      function (_p0) {
+         return A2($Signal.message,address,value);
+      });
    });
+   var runnerIdByBib = F2(function (bib_number,runners) {
+      var ids = A2($List.map,
+      function (r) {
+         return r.id;
+      },
+      A2($List.filter,function (r) {    return _U.eq(r.bib_number,bib_number) && _U.cmp($String.length(bib_number),0) > 0;},runners));
+      return _U.cmp($List.length(ids),0) > 0 ? $List.head(ids) : $Maybe.Nothing;
+   });
+   var update = F3(function (action,now,model) {
+      var _p1 = action;
+      switch (_p1.ctor)
+      {case "Tick": var new_model = _U.update(model,{current_time: now});
+           return {ctor: "_Tuple2",_0: new_model,_1: $Effects.none};
+         case "Start": var new_model = _U.update(model,{timer: {start_time: $Maybe.Just(now)}});
+           return {ctor: "_Tuple2",_0: new_model,_1: $Effects.none};
+         case "Stop": var new_model = _U.update(model,{timer: {start_time: $Maybe.Nothing}});
+           return {ctor: "_Tuple2",_0: new_model,_1: $Effects.none};
+         case "StoreResult": var _p2 = A2($Random$PCG.generate,$Uuid.uuidGenerator,model.current_seed);
+           var newUuid = _p2._0;
+           var newSeed = _p2._1;
+           var res_time = now - A2($Maybe.withDefault,0,model.timer.start_time);
+           var new_result = {runner_id: $Maybe.Nothing,time: res_time,uuid: newUuid,bib_number: ""};
+           var results = A2($List.append,model.results,_U.list([new_result]));
+           var new_model = _U.update(model,{results: results,current_seed: newSeed});
+           return {ctor: "_Tuple2",_0: new_model,_1: $Effects.none};
+         case "UpdateResult": var updateResult = function (t) {    return _U.eq(t.uuid,_p1._0) ? _U.update(t,{bib_number: _p1._1}) : t;};
+           var newModel = _U.update(model,{results: A2($List.map,updateResult,model.results)});
+           return {ctor: "_Tuple2",_0: newModel,_1: $Effects.none};
+         default: var updateResult = function (t) {
+              return _U.eq(t.uuid,_p1._0) ? _U.update(t,{runner_id: A2(runnerIdByBib,t.bib_number,model.runners)}) : t;
+           };
+           var newModel = $Basics.not(_p1._1) ? _U.update(model,{results: A2($List.map,updateResult,model.results)}) : model;
+           return {ctor: "_Tuple2",_0: newModel,_1: $Effects.none};}
+   });
+   var EditingResult = F2(function (a,b) {    return {ctor: "EditingResult",_0: a,_1: b};});
+   var UpdateResult = F2(function (a,b) {    return {ctor: "UpdateResult",_0: a,_1: b};});
+   var bibNumberField = F3(function (address,result,runners) {
+      var number = result.bib_number;
+      return A2($Html.input,
+      _U.list([$Html$Attributes.$class("edit")
+              ,$Html$Attributes.value(number)
+              ,$Html$Attributes.id(A2($Basics._op["++"],"result-",$Uuid.toString(result.uuid)))
+              ,A3($Html$Events.on,"input",$Html$Events.targetValue,function (_p3) {    return A2($Signal.message,address,A2(UpdateResult,result.uuid,_p3));})
+              ,A2($Html$Events.onBlur,address,A2(EditingResult,result.uuid,false))
+              ,A2(onEnter,address,A2(EditingResult,result.uuid,false))]),
+      _U.list([]));
+   });
+   var resultItem = F3(function (address,runners,result) {
+      return A2($Html.li,
+      _U.list([$Html$Attributes.$class("result")]),
+      _U.list([A3(bibNumberField,address,result,runners)
+              ,$Html.text(A2(nameFor,A2($Maybe.withDefault,"",result.runner_id),runners))
+              ,$Html.text(", ")
+              ,$Html.text(formattedTimeInterval(result.time))]));
+   });
+   var results = F2(function (address,model) {
+      var res = A2($List.map,A2(resultItem,address,model.runners),model.results);
+      return A2($Html.ol,_U.list([$Html$Attributes.$class("results")]),res);
+   });
+   var StoreResult = {ctor: "StoreResult"};
+   var storeResultDiv = F2(function (address,model) {
+      return A2($Html.div,
+      _U.list([]),
+      _U.list([A2($Html.button,_U.list([A2($Html$Events.onClick,address,StoreResult)]),_U.list([$Html.text("Store Result")]))]));
+   });
+   var Stop = {ctor: "Stop"};
    var Start = {ctor: "Start"};
+   var startStopButton = F2(function (address,model) {
+      return _U.eq(model.timer.start_time,$Maybe.Nothing) ? A2($Html.div,
+      _U.list([]),
+      _U.list([A2($Html.button,_U.list([A2($Html$Events.onClick,address,Start)]),_U.list([$Html.text("Start Timer")]))])) : A2($Html.div,
+      _U.list([]),
+      _U.list([A2($Html.button,_U.list([A2($Html$Events.onClick,address,Stop)]),_U.list([$Html.text("Stop Timer")]))]));
+   });
    var view = F2(function (address,model) {
       return A2($Html.div,
       _U.list([$Html$Attributes.$class("main")]),
       _U.list([A2($Html.div,_U.list([$Html$Attributes.$class("clock")]),_U.list([currentTime(model.current_time)]))
               ,timer(model)
-              ,A2($Html.ul,_U.list([$Html$Attributes.$class("results")]),A2($List.map,resultItem(model.runners),model.results))
-              ,A2($Html.div,_U.list([]),_U.list([A2($Html.button,_U.list([A2($Html$Events.onClick,address,Start)]),_U.list([$Html.text("Start Timer")]))]))]));
+              ,A2(results,address,model)
+              ,A2(startStopButton,address,model)
+              ,A2(storeResultDiv,address,model)]));
    });
    var Tick = function (a) {    return {ctor: "Tick",_0: a};};
-   var Model = F4(function (a,b,c,d) {    return {runners: a,timer: b,results: c,current_time: d};});
-   var Result = F2(function (a,b) {    return {runner_id: a,time: b};});
-   var Runner = F3(function (a,b,c) {    return {first_name: a,last_name: b,id: c};});
+   var Model = F6(function (a,b,c,d,e,f) {    return {runners: a,timer: b,results: c,current_time: d,current_seed: e,current_uuid: f};});
+   var TimerResult = F4(function (a,b,c,d) {    return {runner_id: a,uuid: b,time: c,bib_number: d};});
+   var Runner = F4(function (a,b,c,d) {    return {first_name: a,last_name: b,id: c,bib_number: d};});
    var Timer = function (a) {    return {start_time: a};};
-   var init = {runners: _U.list([{first_name: "Jarkko",last_name: "Laine",id: "abcde"},{first_name: "Tarmo",last_name: "Tänav",id: "abcdef"}])
-              ,results: _U.list([{runner_id: "abcde",time: 12345},{runner_id: "abcdef",time: 12347}])
-              ,timer: {start_time: $Maybe.Nothing}
-              ,current_time: 0};
-   var app = $StartApp.start({init: {ctor: "_Tuple2",_0: init,_1: $Effects.none}
-                             ,update: update
-                             ,view: view
-                             ,inputs: _U.list([A2($Signal.map,function (t) {    return Tick(t);},$Time.every($Time.second))])});
-   var main = app.html;
    var randomSeed = Elm.Native.Port.make(_elm).inbound("randomSeed",
    "( Int, Int )",
    function (v) {
@@ -96,6 +172,18 @@ Elm.ElmTimer.make = function (_elm) {
                                                            v[1])} : _U.badPort("an array",v);
    });
    var seed0 = A2($Basics.uncurry,$Random$PCG.initialSeed2,randomSeed);
+   var init = {runners: _U.list([{first_name: "Jarkko",last_name: "Laine",id: "abcde",bib_number: "2"}
+                                ,{first_name: "Tarmo",last_name: "Tänav",id: "abcdef",bib_number: "3"}])
+              ,results: _U.list([])
+              ,timer: {start_time: $Maybe.Nothing}
+              ,current_time: 0
+              ,current_seed: seed0
+              ,current_uuid: $Maybe.Nothing};
+   var app = $TimeApp.start({init: {ctor: "_Tuple2",_0: init,_1: $Effects.none}
+                            ,update: update
+                            ,view: view
+                            ,inputs: _U.list([A2($Signal.map,function (t) {    return Tick(t);},$Time.every($Time.second / 5))])});
+   var main = app.html;
    return _elm.ElmTimer.values = {_op: _op
                                  ,seed0: seed0
                                  ,init: init
@@ -103,15 +191,29 @@ Elm.ElmTimer.make = function (_elm) {
                                  ,main: main
                                  ,Timer: Timer
                                  ,Runner: Runner
-                                 ,Result: Result
+                                 ,TimerResult: TimerResult
                                  ,Model: Model
                                  ,Tick: Tick
                                  ,Start: Start
+                                 ,Stop: Stop
+                                 ,StoreResult: StoreResult
+                                 ,UpdateResult: UpdateResult
+                                 ,EditingResult: EditingResult
+                                 ,runnerIdByBib: runnerIdByBib
                                  ,update: update
+                                 ,onEnter: onEnter
+                                 ,is13: is13
                                  ,paddedTime: paddedTime
+                                 ,formattedTimeInterval: formattedTimeInterval
                                  ,currentTime: currentTime
+                                 ,timeDiff: timeDiff
                                  ,timer: timer
+                                 ,results: results
+                                 ,startStopButton: startStopButton
                                  ,view: view
+                                 ,bibNumberFor: bibNumberFor
+                                 ,bibNumberField: bibNumberField
                                  ,resultItem: resultItem
-                                 ,nameFor: nameFor};
+                                 ,nameFor: nameFor
+                                 ,storeResultDiv: storeResultDiv};
 };
