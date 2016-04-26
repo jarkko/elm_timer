@@ -11428,7 +11428,6 @@ Elm.ElmTimer.make = function (_elm) {
    $Result = Elm.Result.make(_elm),
    $Signal = Elm.Signal.make(_elm),
    $String = Elm.String.make(_elm),
-   $Task = Elm.Task.make(_elm),
    $Time = Elm.Time.make(_elm),
    $TimeApp = Elm.TimeApp.make(_elm),
    $Uuid = Elm.Uuid.make(_elm);
@@ -11478,9 +11477,8 @@ Elm.ElmTimer.make = function (_elm) {
    };
    var is13 = function (code) {    return _U.eq(code,13) ? $Result.Ok({ctor: "_Tuple0"}) : $Result.Err("not the right key code");};
    var onEnter = F2(function (address,value) {
-      return A4($Html$Events.onWithOptions,
+      return A3($Html$Events.on,
       "keydown",
-      {preventDefault: true,stopPropagation: true},
       A2($Json$Decode.customDecoder,$Html$Events.keyCode,is13),
       function (_p0) {
          return A2($Signal.message,address,value);
@@ -11494,6 +11492,32 @@ Elm.ElmTimer.make = function (_elm) {
       A2($List.filter,function (r) {    return _U.eq(r.bib_number,bib_number) && _U.cmp($String.length(bib_number),0) > 0;},runners));
       return _U.cmp($List.length(ids),0) > 0 ? $List.head(ids) : $Maybe.Nothing;
    });
+   var update = F3(function (action,now,model) {
+      var _p1 = action;
+      switch (_p1.ctor)
+      {case "Tick": var new_model = _U.update(model,{current_time: now});
+           return {ctor: "_Tuple2",_0: new_model,_1: $Effects.none};
+         case "Start": var new_model = _U.update(model,{timer: {start_time: $Maybe.Just(now)}});
+           return {ctor: "_Tuple2",_0: new_model,_1: $Effects.none};
+         case "Stop": var new_model = _U.update(model,{timer: {start_time: $Maybe.Nothing}});
+           return {ctor: "_Tuple2",_0: new_model,_1: $Effects.none};
+         case "StoreResult": var _p2 = A2($Random$PCG.generate,$Uuid.uuidGenerator,model.current_seed);
+           var newUuid = _p2._0;
+           var newSeed = _p2._1;
+           var res_time = now - A2($Maybe.withDefault,0,model.timer.start_time);
+           var new_result = {runner_id: $Maybe.Nothing,time: res_time,uuid: newUuid,bib_number: "",editing: true};
+           var results = A2($List.append,model.results,_U.list([new_result]));
+           var new_model = _U.update(model,{results: results,current_seed: newSeed});
+           return {ctor: "_Tuple2",_0: new_model,_1: $Effects.none};
+         case "UpdateResult": var updateResult = function (t) {    return _U.eq(t.uuid,_p1._0) ? _U.update(t,{bib_number: _p1._1}) : t;};
+           var newModel = _U.update(model,{results: A2($List.map,updateResult,model.results)});
+           return {ctor: "_Tuple2",_0: newModel,_1: $Effects.none};
+         default: var updateResult = function (t) {
+              return _U.eq(t.uuid,_p1._0) ? _U.update(t,{runner_id: A2(runnerIdByBib,t.bib_number,model.runners),editing: _p1._1}) : t;
+           };
+           var newModel = _U.update(model,{results: A2($List.map,updateResult,model.results)});
+           return {ctor: "_Tuple2",_0: newModel,_1: $Effects.none};}
+   });
    var EditingResult = F2(function (a,b) {    return {ctor: "EditingResult",_0: a,_1: b};});
    var UpdateResult = F2(function (a,b) {    return {ctor: "UpdateResult",_0: a,_1: b};});
    var bibNumberField = F3(function (address,result,runners) {
@@ -11502,14 +11526,14 @@ Elm.ElmTimer.make = function (_elm) {
       _U.list([$Html$Attributes.$class("edit")
               ,$Html$Attributes.value(number)
               ,$Html$Attributes.id(A2($Basics._op["++"],"result-",$Uuid.toString(result.uuid)))
-              ,A3($Html$Events.on,"input",$Html$Events.targetValue,function (_p1) {    return A2($Signal.message,address,A2(UpdateResult,result.uuid,_p1));})
+              ,A3($Html$Events.on,"input",$Html$Events.targetValue,function (_p3) {    return A2($Signal.message,address,A2(UpdateResult,result.uuid,_p3));})
               ,A2($Html$Events.onBlur,address,A2(EditingResult,result.uuid,false))
               ,A2(onEnter,address,A2(EditingResult,result.uuid,false))]),
       _U.list([]));
    });
    var bibNumberDiv = F3(function (address,result,runners) {
       var number = result.bib_number;
-      return result.editing || _U.eq(result.runner_id,$Maybe.Nothing) ? A3(bibNumberField,address,result,runners) : A2($Html.span,
+      return result.editing ? A3(bibNumberField,address,result,runners) : A2($Html.span,
       _U.list([$Html$Attributes.$class("edit")
               ,$Html$Attributes.id(A2($Basics._op["++"],"result-",$Uuid.toString(result.uuid)))
               ,A2($Html$Events.onClick,address,A2(EditingResult,result.uuid,true))]),
@@ -11518,7 +11542,7 @@ Elm.ElmTimer.make = function (_elm) {
    var resultItem = F3(function (address,runners,result) {
       return A2($Html.li,
       _U.list([$Html$Attributes.$class("result")]),
-      _U.list([A3(bibNumberDiv,address,result,runners)
+      _U.list([A3(bibNumberField,address,result,runners)
               ,$Html.text(A2(nameFor,A2($Maybe.withDefault,"",result.runner_id),runners))
               ,$Html.text(", ")
               ,$Html.text(formattedTimeInterval(result.time))]));
@@ -11531,16 +11555,7 @@ Elm.ElmTimer.make = function (_elm) {
    var storeResultDiv = F2(function (address,model) {
       return A2($Html.div,
       _U.list([]),
-      _U.list([A2($Html.button,
-      _U.list([$Html$Attributes.id("store-result-button")
-              ,A4($Html$Events.onWithOptions,
-              "click",
-              {preventDefault: true,stopPropagation: true},
-              $Json$Decode.value,
-              function (_p2) {
-                 return A2($Signal.message,address,StoreResult);
-              })]),
-      _U.list([$Html.text("Store Result")]))]));
+      _U.list([A2($Html.button,_U.list([A2($Html$Events.onClick,address,StoreResult)]),_U.list([$Html.text("Store Result")]))]));
    });
    var Stop = {ctor: "Stop"};
    var Start = {ctor: "Start"};
@@ -11549,7 +11564,7 @@ Elm.ElmTimer.make = function (_elm) {
       _U.list([]),
       _U.list([A2($Html.button,_U.list([A2($Html$Events.onClick,address,Start)]),_U.list([$Html.text("Start Timer")]))])) : A2($Html.div,
       _U.list([]),
-      _U.list([]));
+      _U.list([A2($Html.button,_U.list([A2($Html$Events.onClick,address,Stop)]),_U.list([$Html.text("Stop Timer")]))]));
    });
    var view = F2(function (address,model) {
       return A2($Html.div,
@@ -11560,55 +11575,11 @@ Elm.ElmTimer.make = function (_elm) {
               ,A2(startStopButton,address,model)
               ,A2(storeResultDiv,address,model)]));
    });
-   var NoOp = {ctor: "NoOp"};
    var Tick = function (a) {    return {ctor: "Tick",_0: a};};
    var Model = F6(function (a,b,c,d,e,f) {    return {runners: a,timer: b,results: c,current_time: d,current_seed: e,current_uuid: f};});
    var TimerResult = F5(function (a,b,c,d,e) {    return {runner_id: a,uuid: b,time: c,bib_number: d,editing: e};});
    var Runner = F4(function (a,b,c,d) {    return {first_name: a,last_name: b,id: c,bib_number: d};});
    var Timer = function (a) {    return {start_time: a};};
-   var blurbox = $Signal.mailbox("");
-   var blurStoreResultButton = Elm.Native.Port.make(_elm).outboundSignal("blurStoreResultButton",
-   function (v) {
-      return v;
-   },
-   A2($Signal.map,function (_p3) {    return "store-result-button";},blurbox.signal));
-   var update = F3(function (action,now,model) {
-      var _p4 = action;
-      switch (_p4.ctor)
-      {case "NoOp": return {ctor: "_Tuple2",_0: model,_1: $Effects.none};
-         case "Tick": var new_model = _U.update(model,{current_time: now});
-           return {ctor: "_Tuple2",_0: new_model,_1: $Effects.none};
-         case "Start": var start_time = $Maybe.Just(now);
-           var new_model = _U.update(model,{timer: {start_time: start_time}});
-           return {ctor: "_Tuple2",_0: new_model,_1: $Effects.none};
-         case "Stop": var new_model = _U.update(model,{timer: {start_time: $Maybe.Nothing}});
-           return {ctor: "_Tuple2",_0: new_model,_1: $Effects.none};
-         case "StoreResult": var _p5 = A2($Random$PCG.generate,$Uuid.uuidGenerator,model.current_seed);
-           var newUuid = _p5._0;
-           var newSeed = _p5._1;
-           var res_time = now - A2($Maybe.withDefault,0,model.timer.start_time);
-           var new_result = {runner_id: $Maybe.Nothing,time: res_time,uuid: newUuid,bib_number: "",editing: true};
-           var results = A2($List.append,model.results,_U.list([new_result]));
-           var new_model = _U.update(model,{results: results,current_seed: newSeed});
-           var sendTask = A2($Task.andThen,A2($Signal.send,blurbox.address,""),function (_p6) {    return $Task.succeed(NoOp);});
-           var effects = $Effects.task(sendTask);
-           return _U.eq(model.timer.start_time,$Maybe.Nothing) ? {ctor: "_Tuple2",_0: model,_1: effects} : {ctor: "_Tuple2",_0: new_model,_1: effects};
-         case "UpdateResult": var updateResult = function (t) {    return _U.eq(t.uuid,_p4._0) ? _U.update(t,{bib_number: _p4._1}) : t;};
-           var newModel = _U.update(model,{results: A2($List.map,updateResult,model.results)});
-           return {ctor: "_Tuple2",_0: newModel,_1: $Effects.none};
-         default: var updateResult = function (t) {
-              return _U.eq(t.uuid,_p4._0) ? _U.update(t,{runner_id: A2(runnerIdByBib,t.bib_number,model.runners),editing: _p4._1}) : t;
-           };
-           var newModel = _U.update(model,{results: A2($List.map,updateResult,model.results)});
-           return {ctor: "_Tuple2",_0: newModel,_1: $Effects.none};}
-   });
-   var resultFires = Elm.Native.Port.make(_elm).inboundSignal("resultFires",
-   "Bool",
-   function (v) {
-      return typeof v === "boolean" ? v : _U.badPort("a boolean (true or false)",v);
-   });
-   var resultToStore = A2($Signal.map,$Basics.always(StoreResult),resultFires);
-   var incomingActions = resultToStore;
    var randomSeed = Elm.Native.Port.make(_elm).inbound("randomSeed",
    "( Int, Int )",
    function (v) {
@@ -11629,20 +11600,9 @@ Elm.ElmTimer.make = function (_elm) {
    var app = $TimeApp.start({init: {ctor: "_Tuple2",_0: init,_1: $Effects.none}
                             ,update: update
                             ,view: view
-                            ,inputs: _U.list([A2($Signal.map,function (t) {    return Tick(t);},$Time.every($Time.second / 5)),incomingActions])});
+                            ,inputs: _U.list([A2($Signal.map,function (t) {    return Tick(t);},$Time.every($Time.second / 5))])});
    var main = app.html;
-   var tasks = Elm.Native.Task.make(_elm).performSignal("tasks",app.tasks);
-   var newResultsBox = function () {
-      var _p7 = A2($Random$PCG.generate,$Uuid.uuidGenerator,seed0);
-      var uuid = _p7._0;
-      var seed = _p7._1;
-      return $Signal.mailbox(A5(TimerResult,$Maybe.Nothing,uuid,0,"",false));
-   }();
-   var sendNewResult = F2(function (result,model) {
-      return A2($Effects.map,$Basics.always(NoOp),$Effects.task(A2($Signal.send,newResultsBox.address,result)));
-   });
    return _elm.ElmTimer.values = {_op: _op
-                                 ,blurbox: blurbox
                                  ,seed0: seed0
                                  ,init: init
                                  ,app: app
@@ -11652,7 +11612,6 @@ Elm.ElmTimer.make = function (_elm) {
                                  ,TimerResult: TimerResult
                                  ,Model: Model
                                  ,Tick: Tick
-                                 ,NoOp: NoOp
                                  ,Start: Start
                                  ,Stop: Stop
                                  ,StoreResult: StoreResult
@@ -11675,9 +11634,5 @@ Elm.ElmTimer.make = function (_elm) {
                                  ,bibNumberDiv: bibNumberDiv
                                  ,resultItem: resultItem
                                  ,nameFor: nameFor
-                                 ,storeResultDiv: storeResultDiv
-                                 ,resultToStore: resultToStore
-                                 ,incomingActions: incomingActions
-                                 ,newResultsBox: newResultsBox
-                                 ,sendNewResult: sendNewResult};
+                                 ,storeResultDiv: storeResultDiv};
 };

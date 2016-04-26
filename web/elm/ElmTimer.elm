@@ -2,12 +2,13 @@ module ElmTimer where
 
 
 import TimeApp
-import Effects
+import Effects exposing (Effects, Never)
 -- import Task
 import String
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
+import Task exposing (..)
 import Json.Decode as Json
 import Uuid
 import Random.PCG exposing (Seed, initialSeed2, generate)
@@ -18,7 +19,14 @@ import Html.Events exposing (onClick)
 import Maybe exposing (withDefault)
 
 port randomSeed : (Int, Int)
+port resultFires : Signal Bool
 
+blurbox : Signal.Mailbox String
+blurbox = Signal.mailbox ""
+
+port blurStoreResultButton : Signal String
+port blurStoreResultButton =
+  Signal.map (\_ -> "store-result-button") blurbox.signal
 
 seed0 : Seed
 seed0 =
@@ -46,12 +54,18 @@ app = TimeApp.start
   { init = (init, Effects.none)
   , update = update
   , view = view
-  , inputs = [Signal.map (\t -> Tick t) (every (Time.second / 5))]}
+  , inputs =
+      [ Signal.map (\t -> Tick t) (every (Time.second / 5))
+      , incomingActions ]
+  }
 
 
 main : Signal Html
 main = app.html
 
+port tasks : Signal (Task.Task Effects.Never ())
+port tasks =
+    app.tasks
 
 type alias Timer =
   { start_time : Maybe Time.Time
@@ -71,6 +85,7 @@ type alias TimerResult =
   , uuid : Uuid.Uuid
   , time : Time.Time
   , bib_number : String
+  , editing : Bool
   }
 
 
@@ -89,6 +104,7 @@ type alias Model =
 
 type Action
   = Tick Time.Time
+  | NoOp
   | Start
   | Stop
   | StoreResult
@@ -101,7 +117,8 @@ runnerIdByBib bib_number runners =
   let
     ids =
       runners
-      |> List.filter (\r -> r.bib_number == bib_number && (String.length(bib_number) > 0))
+      |> List.filter (\r -> r.bib_number == bib_number &&
+                            (String.length(bib_number) > 0))
       |> List.map (\r -> r.id)
   in
     if List.length ids > 0 then
@@ -113,6 +130,8 @@ runnerIdByBib bib_number runners =
 update : Action -> Time.Time -> Model -> ( Model, Effects.Effects Action )
 update action now model =
   case action of
+    NoOp ->
+      (model, Effects.none)
     Tick t ->
       let
         new_model = { model | current_time = now }
@@ -120,7 +139,8 @@ update action now model =
         (new_model, Effects.none)
     Start ->
       let
-        new_model = { model | timer = { start_time = Just now }}
+        start_time = Just now
+        new_model = { model | timer = { start_time = start_time }}
       in
         (new_model, Effects.none)
     Stop ->
@@ -130,13 +150,27 @@ update action now model =
         (new_model, Effects.none)
     StoreResult ->
       let
+        sendTask =
+          Signal.send blurbox.address ""
+            `Task.andThen` (\_ -> Task.succeed NoOp)
+
+        effects = sendTask |> Effects.task
+
         res_time = now - (Maybe.withDefault 0 model.timer.start_time)
         (newUuid, newSeed) = generate Uuid.uuidGenerator model.current_seed
-        new_result = { runner_id = Nothing, time = res_time, uuid = newUuid, bib_number = "" }
+        new_result =
+          { runner_id = Nothing
+          , time = res_time
+          , uuid = newUuid
+          , bib_number = ""
+          , editing = True }
         results = List.append model.results [new_result]
         new_model = { model | results = results, current_seed = newSeed }
       in
-        (new_model, Effects.none)
+        if model.timer.start_time == Nothing then
+          (model, effects)
+        else
+          (new_model, effects)
     UpdateResult id bib_number ->
       let
         updateResult t =
@@ -150,12 +184,10 @@ update action now model =
       let
         updateResult t =
           if t.uuid == id then
-            { t | runner_id = runnerIdByBib t.bib_number model.runners }
+            { t | runner_id = runnerIdByBib t.bib_number model.runners
+                , editing = isEditing }
           else t
-        newModel = if (not isEditing) then
-          { model | results = List.map updateResult model.results }
-        else
-          model
+        newModel = { model | results = List.map updateResult model.results }
       in
         (newModel, Effects.none)
 
@@ -163,7 +195,7 @@ update action now model =
 
 onEnter : Address a -> a -> Attribute
 onEnter address value =
-  on "keydown"
+  onWithOptions "keydown" {preventDefault = True, stopPropagation = True}
     (Json.customDecoder keyCode is13)
     (\_ -> Signal.message address value)
 
@@ -238,7 +270,7 @@ startStopButton address model =
   if model.timer.start_time == Nothing then
     div [] [ button [ onClick address Start ] [ text "Start Timer" ] ]
   else
-    div [] [ button [ onClick address Stop ] [ text "Stop Timer" ] ]
+    div [] [ ]
 
 
 view : Address Action -> Model -> Html
@@ -280,11 +312,27 @@ bibNumberField address result runners =
       ]
       [ ]
 
+bibNumberDiv : Address Action -> TimerResult -> List Runner -> Html
+bibNumberDiv address result runners =
+  let
+    number = result.bib_number
+  in
+    if result.editing || result.runner_id == Nothing then
+      bibNumberField address result runners
+    else
+      span
+        [ class "edit"
+        , id ("result-" ++ Uuid.toString(result.uuid))
+        , onClick address (EditingResult result.uuid True)
+        ]
+        [ text number ]
+
 
 resultItem : Address Action -> List Runner -> TimerResult -> Html
 resultItem address runners result =
+  -- Debug.log(toString result)
   li [ class "result" ]
-     [ bibNumberField address result runners
+     [ bibNumberDiv address result runners
      , text (nameFor (Maybe.withDefault "" result.runner_id) runners)
      , text (", ")
      , text (formattedTimeInterval result.time)
@@ -302,4 +350,40 @@ nameFor uuid runners =
 
 storeResultDiv : Address Action -> Model -> Html
 storeResultDiv address model =
-  div [] [ button [ onClick address StoreResult ] [ text "Store Result" ] ]
+  div []
+      [ button
+        [ id "store-result-button"
+        , onWithOptions "click" {preventDefault = True, stopPropagation = True}
+            (Json.value)
+            (\_ -> Signal.message address StoreResult)
+        ]
+        [ text "Store Result" ]
+      ]
+
+-- SIGNALS
+
+resultToStore: Signal Action
+resultToStore =
+  Signal.map (always StoreResult) resultFires
+
+incomingActions: Signal Action
+incomingActions =
+  resultToStore
+
+
+newResultsBox : Signal.Mailbox TimerResult
+newResultsBox =
+  let
+    (uuid, seed) = generate Uuid.uuidGenerator seed0
+  in
+    Signal.mailbox (TimerResult Nothing uuid 0 "" False)
+
+
+-- EFFECTS
+
+
+sendNewResult : TimerResult -> Model -> Effects Action
+sendNewResult result model =
+  Signal.send newResultsBox.address result
+    |> Effects.task
+    |> Effects.map (always NoOp)

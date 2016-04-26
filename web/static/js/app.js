@@ -21,4 +21,26 @@ import "phoenix_html"
 // import socket from "./socket"
 
 const elmDiv = document.getElementById('elm-main');
-const elmApp = Elm.embed(Elm.ElmTimer, elmDiv, {randomSeed: [Math.floor(Math.random()*0xFFFFFFFF), Math.floor(Math.random()*0xFFFFFFFF)]});
+const elmApp = Elm.embed(
+  Elm.ElmTimer,
+  elmDiv,
+  {
+    randomSeed: [
+      Math.floor(Math.random()*0xFFFFFFFF),
+      Math.floor(Math.random()*0xFFFFFFFF)
+    ],
+    resultFires: false,
+  }
+);
+
+const blurrer = (id = "store-result-button") => {
+  document.getElementById(id).blur();
+}
+
+elmApp.ports.blurStoreResultButton.subscribe(blurrer);
+
+document.addEventListener("keydown", function(e) {
+  if (e.keyCode == "13") { // enter hit
+    elmApp.ports.resultFires.send(true)
+  }
+});
