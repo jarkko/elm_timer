@@ -24,6 +24,11 @@ port resultFires : Signal Bool
 blurbox : Signal.Mailbox String
 blurbox = Signal.mailbox ""
 
+sendTask : Task.Task a Action
+sendTask =
+  Signal.send blurbox.address ""
+    `Task.andThen` (\_ -> Task.succeed NoOp)
+
 port blurStoreResultButton : Signal String
 port blurStoreResultButton =
   Signal.map (\_ -> "store-result-button") blurbox.signal
@@ -32,6 +37,9 @@ seed0 : Seed
 seed0 =
   (uncurry initialSeed2) randomSeed
 
+initialUuid : (Uuid.Uuid, Seed)
+initialUuid =
+  generate Uuid.uuidGenerator seed0
 
 init : Model
 init =
@@ -150,10 +158,6 @@ update action now model =
         (new_model, Effects.none)
     StoreResult ->
       let
-        sendTask =
-          Signal.send blurbox.address ""
-            `Task.andThen` (\_ -> Task.succeed NoOp)
-
         effects = sendTask |> Effects.task
 
         res_time = now - (Maybe.withDefault 0 model.timer.start_time)
@@ -210,16 +214,20 @@ paddedTime t =
   String.padLeft 2 '0' t
 
 
-formattedTimeInterval : Time.Time -> String
-formattedTimeInterval t =
+formattedTimeInterval : Time.Time -> Boolean -> String
+formattedTimeInterval t parts =
   let
-    secs = (floor (Time.inSeconds t)) % 60
-    minutes = (floor (Time.inMinutes t)) % 60
-    hours = floor (Time.inHours t)
+    secs = ((floor (Time.inSeconds t)) % 60) |> toString
+    if parts == True
+      p = ((floor (Time.inMilliseconds t)) % 1000) |> toString
+      s = secs ++ "." ++ p
+    else
+      s = secs
+    minutes = ((floor (Time.inMinutes t)) % 60) |> toString
+    hours = (floor (Time.inHours t)) |> toString
     times = [hours, minutes, secs]
   in
     times
-    |> List.map toString
     |> List.map paddedTime
     |> String.join ":"
 
@@ -374,7 +382,7 @@ incomingActions =
 newResultsBox : Signal.Mailbox TimerResult
 newResultsBox =
   let
-    (uuid, seed) = generate Uuid.uuidGenerator seed0
+    (uuid, seed) = initialUuid
   in
     Signal.mailbox (TimerResult Nothing uuid 0 "" False)
 
